@@ -10,7 +10,7 @@ extension MetaplexActions {
         public typealias Success = PublicKey
         public let tokenMint: PublicKey
 
-        init(tokenMint: PublicKey) {
+        public init(tokenMint: PublicKey) {
             self.tokenMint = tokenMint
         }
         
