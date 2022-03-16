@@ -2,7 +2,6 @@
 
 import Foundation
 import Solana
-import CryptoSwift
 
 public enum MetaplexActions {}
 
@@ -49,7 +48,7 @@ extension PublicKey {
         data.append("ProgramDerivedAddress".data(using: .utf8)!)
 
         // hash it
-        let hash = data.sha256()
+        let hash = sha256(data: data)
         let publicKeyBytes = Bignum(number: hash.hexString, withBase: 16).data
         
         // check it
