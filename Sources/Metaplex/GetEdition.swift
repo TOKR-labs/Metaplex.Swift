@@ -5,25 +5,31 @@ import Solana
 import CryptoKit
 
 extension MetaplexActions {
+   
     public struct GetEdition: ActionTemplate {
+        
         public typealias Success = PublicKey
+        
         public let tokenMint: PublicKey
 
         public func perform(withConfigurationFrom actionClass: Action, completion: @escaping (Result<Success, Error>) -> Void) {
-
-            let seed = [String.metadataPrefix.bytes +
+            
+            let seed = [
+                String.metadataPrefix.bytes +
                         PublicKey.metadataProgramId.bytes +
                         tokenMint.bytes +
-                        String.editionKeyword.bytes].map { Data($0) }
+                        String.editionKeyword.bytes
+            ].map { Data($0) }
+            
+            _ = PublicKey._findProgramAddress(seeds: seed, programId: .metadataProgramId)
+                .onSuccess { key in
+                    completion(.success(key.0))
+                }
+                .onFailure { error in
+                    completion(.failure(error))
+                }
 
-            let key = PublicKey._findProgramAddress(seeds: seed, programId: .metadataProgramId)
-
-            guard let key = key else {
-                completion(.failure(MetaplexError.publicKeyError(nil)))
-                return
-            }
-
-            completion(.success(key.0))
         }
     }
+    
 }
