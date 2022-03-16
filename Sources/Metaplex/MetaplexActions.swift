@@ -2,32 +2,44 @@
 
 import Foundation
 import Solana
+import CryptoSwift
 
 public enum MetaplexActions {}
 
+
+// MARK: - Constants
+private var maxSeedLength = 32
+private let gf1 = NaclLowLevel.gf([1])
+
+private extension Int {
+    func toBool() -> Bool {
+        self != 0
+    }
+}
 
 // TODO: Remove compat
 
 
 extension PublicKey {
+    
     static func _findProgramAddress(
         seeds: [Data],
         programId: Self
-    ) -> (Self, UInt8)? {
+    ) -> Result<(Self, UInt8), Error> {
         for nonce in stride(from: UInt8(255), to: 0, by: -1) {
             let seedsWithNonce = seeds + [Data([nonce])]
-            return _createProgramAddress(
-                seeds: seedsWithNonce,
-                programId: programId
-            ).map {($0, nonce) }
+            if case .success(let publicKey) = _createProgramAddress(seeds: seedsWithNonce, programId: programId) {
+                return .success((publicKey, nonce))
+            }
         }
-        return nil
+        return .failure(SolanaError.notFoundProgramAddress)
     }
-
+    
+    
     private static func _createProgramAddress(
         seeds: [Data],
         programId: PublicKey
-    ) ->  PublicKey? {
+    ) ->  Result<PublicKey, Error> {
         // construct data
         var data = Data()
         for seed in seeds {
@@ -37,19 +49,18 @@ extension PublicKey {
         data.append("ProgramDerivedAddress".data(using: .utf8)!)
 
         // hash it
-        let hash = sha256(data: data)
-        let publicKeyBytes = Bignum(number: hash._hexString, withBase: 16).data
-
+        let hash = data.sha256()
+        let publicKeyBytes = Bignum(number: hash.hexString, withBase: 16).data
+        
         // check it
         if _isOnCurve(publicKeyBytes: publicKeyBytes).toBool() {
-            return nil
+            return .failure(SolanaError.other("Invalid seeds, address must fall off the curve"))
         }
         guard let newKey = PublicKey(data: publicKeyBytes) else {
-            return nil
+            return .failure(SolanaError.invalidPublicKey)
         }
-        return newKey
+        return .success(newKey)
     }
-
 
     static var programIds: [PublicKey] {
         [
@@ -84,7 +95,7 @@ extension String {
 extension Data {
 
     /// Hexadecimal string representation of the underlying data
-    var _hexString: String {
+    var hexString: String {
         return withUnsafeBytes { (buf: UnsafePointer<UInt8>) -> String in
             let charA = UInt8(UnicodeScalar("a").value)
             let char0 = UInt8(UnicodeScalar("0").value)
@@ -105,8 +116,11 @@ extension Data {
     }
 }
 
+
 extension PublicKey {
-    static func _isOnCurve(publicKeyBytes: Data) -> Int {
+    
+
+    private static func _isOnCurve(publicKeyBytes: Data) -> Int {
         var r = [[Int64]](repeating: NaclLowLevel.gf(), count: 4)
 
         var t = NaclLowLevel.gf(),
@@ -117,7 +131,7 @@ extension PublicKey {
             den4 = NaclLowLevel.gf(),
             den6 = NaclLowLevel.gf()
 
-        NaclLowLevel.set25519(&r[2], NaclLowLevel.gf([1]))
+        NaclLowLevel.set25519(&r[2], gf1)
         NaclLowLevel.unpack25519(&r[1], publicKeyBytes.bytes)
         NaclLowLevel.S(&num, r[1])
         NaclLowLevel.M(&den, num, NaclLowLevel.D)
@@ -150,6 +164,7 @@ extension PublicKey {
         }
         return 1
     }
+ 
 }
 
 struct NaclLowLevel {
@@ -338,9 +353,9 @@ struct NaclLowLevel {
 }
 
 private extension Int {
-    func toBool() -> Bool {
-        self != 0
-    }
+//    func toBool() -> Bool {
+//        self != 0
+//    }
 }
 
 infix operator >>> : BitwiseShiftPrecedence
@@ -352,3 +367,4 @@ func >>> (lhs: Int, rhs: Int) -> Int {
 func getInt32(_ value: Int64) -> Int32 {
     return Int32(truncatingIfNeeded: value)
 }
+
