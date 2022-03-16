@@ -5,7 +5,6 @@ import Solana
 
 public enum MetaplexActions {}
 
-
 // MARK: - Constants
 private var maxSeedLength = 32
 private let gf1 = NaclLowLevel.gf([1])

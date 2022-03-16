@@ -10,6 +10,10 @@ extension MetaplexActions {
         public typealias Success = PublicKey
         public let tokenMint: PublicKey
 
+        init(tokenMint: PublicKey) {
+            self.tokenMint = tokenMint
+        }
+        
         public func perform(withConfigurationFrom actionClass: Action, completion: @escaping (Result<Success, Error>) -> Void) {
 
             let seed = [
